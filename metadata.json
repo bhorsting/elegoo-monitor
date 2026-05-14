@@ -1,6 +1,6 @@
 {
-  "name": "Neptune Nexus",
-  "description": "A sleek dashboard to monitor your Elegoo 3D printer, track print progress, and view live camera feeds.",
+  "name": "Saturn Nexus",
+  "description": "High-precision monitoring for the Elegoo Saturn 4 Ultra. Track layers, exposure times, and live inspection feeds via SDCP.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
