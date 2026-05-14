@@ -21,8 +21,10 @@ import {
   CartesianGrid 
 } from 'recharts';
 import { SDCPService, SaturnStatus } from './services/sdcp';
+import { RTSPPlayer } from './components/RTSPPlayer';
 
 const STORAGE_KEY = 'saturn_printer_ip';
+const PROXY_STORAGE_KEY = 'saturn_proxy_url';
 const DEFAULT_IP = '192.168.1.142';
 
 interface TempHistory {
@@ -35,11 +37,13 @@ export default function App() {
   const [printerIp, setPrinterIp] = useState<string>(() => {
     return localStorage.getItem(STORAGE_KEY) || DEFAULT_IP;
   });
+  const [proxyUrl, setProxyUrl] = useState<string>(() => {
+    return localStorage.getItem(PROXY_STORAGE_KEY) || '';
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tempHistory, setTempHistory] = useState<TempHistory[]>([]);
-  const [streamError, setStreamError] = useState(false);
   
   const [status, setStatus] = useState<SaturnStatus>({
     state: 'IDLE',
@@ -58,6 +62,7 @@ export default function App() {
   useEffect(() => {
     if (isConnected) {
       localStorage.setItem(STORAGE_KEY, printerIp);
+      if (proxyUrl) localStorage.setItem(PROXY_STORAGE_KEY, proxyUrl);
       const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setTempHistory(prev => {
         const next = [...prev, { 
@@ -73,7 +78,6 @@ export default function App() {
   const connectToPrinter = async (ip: string) => {
     setIsConnecting(true);
     setError(null);
-    setStreamError(false);
     
     try {
       const service = new SDCPService(ip, (updates) => {
@@ -167,6 +171,18 @@ export default function App() {
                       )}
                     </button>
                   </div>
+                  
+                  <div className="pt-2">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-text-dim ml-1">Streamedian Proxy (Optional)</label>
+                    <input 
+                      type="text" 
+                      placeholder={`ws://${printerIp || '192.168.1.142'}:8080/ws`}
+                      className="w-full bg-[#0B0B0C]/50 border border-border-subtle rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-brand/30 transition-all font-mono text-xs text-text-muted mt-2"
+                      value={proxyUrl}
+                      onChange={(e) => setProxyUrl(e.target.value)}
+                    />
+                  </div>
+
                   {error && (
                     <motion.p 
                       initial={{ opacity: 0, x: -10 }}
@@ -338,13 +354,11 @@ export default function App() {
 
               <div className="col-span-8 flex flex-col gap-10 overflow-hidden">
                 <section className="relative flex-1 bg-black rounded-[3rem] border border-border-subtle overflow-hidden group shadow-[0_0_80px_rgba(0,0,0,0.5)]">
-                    <div className="absolute inset-0 bg-[#0F0F10]">
-                      <img 
-                        src={streamError ? 'https://images.unsplash.com/photo-1631281441457-3a111a4fcf23?q=80&w=1200&auto=format&fit=crop' : `http://${printerIp}:3031/video`} 
-                        alt="Inspection Feed"
-                        className="w-full h-full object-cover opacity-80 mix-blend-screen transition-opacity group-hover:opacity-100"
-                        onError={() => setStreamError(true)}
-                        referrerPolicy="no-referrer"
+                    <div className="absolute inset-0">
+                      <RTSPPlayer 
+                        rtspUrl={`rtsp://${printerIp}/video`}
+                        socketUrl={proxyUrl || `ws://${printerIp}:8080/ws`}
+                        className="opacity-80 transition-opacity group-hover:opacity-100 mix-blend-screen"
                       />
                     </div>
                   

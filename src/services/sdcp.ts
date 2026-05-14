@@ -73,16 +73,15 @@ export class SDCPService {
     if (statusRoot) {
       const updates: Partial<SaturnStatus> = {};
       
-      // PrintInfo has more specific details on S4 Ultra
       const printInfo = statusRoot.PrintInfo;
-      // S4U uses Status inside PrintInfo for active print state
+      // S4U uses Status 2 for active printing
       const rawState = printInfo?.Status ?? statusRoot.State;
 
       if (rawState !== undefined) {
         const stateMap: Record<number, SaturnStatus['state']> = {
           0: 'IDLE',
           1: 'PRINTING',
-          2: 'PRINTING', // S4U uses 2 for active printing
+          2: 'PRINTING', 
           3: 'PAUSED',
           4: 'FINISH',
           5: 'ERROR'
@@ -90,7 +89,6 @@ export class SDCPService {
         updates.state = stateMap[rawState] || 'IDLE';
       }
 
-      // Layer info can be in statusRoot or statusRoot.PrintInfo
       const currentLayer = printInfo?.CurrentLayer ?? statusRoot.CurrentLayer;
       const totalLayers = printInfo?.TotalLayer ?? statusRoot.TotalLayer;
 
@@ -104,7 +102,7 @@ export class SDCPService {
       const filename = printInfo?.Filename ?? statusRoot.Filename;
       if (filename) updates.filename = filename;
       
-      // Temperature info fallback (UV LED temp is a good proxy if ResinTemp is missing)
+      // S4U often sends TempOfUVLED instead of ResinTemp
       updates.temperatures = {
         enclosure: statusRoot.ChamberTemp || 0,
         resin: Math.round((statusRoot.ResinTemp || statusRoot.TempOfUVLED || 0) * 10) / 10
