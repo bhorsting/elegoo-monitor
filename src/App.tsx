@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { SDCPService, SaturnStatus } from './services/sdcp';
 
+const STORAGE_KEY = 'saturn_printer_ip';
 const DEFAULT_IP = '192.168.1.142';
 
 interface TempHistory {
@@ -31,11 +32,14 @@ interface TempHistory {
 }
 
 export default function App() {
-  const [printerIp, setPrinterIp] = useState<string>(DEFAULT_IP);
+  const [printerIp, setPrinterIp] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEY) || DEFAULT_IP;
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tempHistory, setTempHistory] = useState<TempHistory[]>([]);
+  const [streamError, setStreamError] = useState(false);
   
   const [status, setStatus] = useState<SaturnStatus>({
     state: 'IDLE',
@@ -53,6 +57,7 @@ export default function App() {
 
   useEffect(() => {
     if (isConnected) {
+      localStorage.setItem(STORAGE_KEY, printerIp);
       const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setTempHistory(prev => {
         const next = [...prev, { 
@@ -63,11 +68,12 @@ export default function App() {
         return next.slice(-20);
       });
     }
-  }, [status.temperatures, isConnected]);
+  }, [status.temperatures, isConnected, printerIp]);
 
   const connectToPrinter = async (ip: string) => {
     setIsConnecting(true);
     setError(null);
+    setStreamError(false);
     
     try {
       const service = new SDCPService(ip, (updates) => {
@@ -264,8 +270,8 @@ export default function App() {
                         <Activity className="w-4 h-4 text-brand" /> Thermal Analysis
                       </div>
                       
-                      <div className="h-[140px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div className="h-[140px] w-full min-h-[140px]">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={140}>
                           <AreaChart data={tempHistory}>
                             <defs>
                               <linearGradient id="colorResin" x1="0" y1="0" x2="0" y2="1">
@@ -332,16 +338,15 @@ export default function App() {
 
               <div className="col-span-8 flex flex-col gap-10 overflow-hidden">
                 <section className="relative flex-1 bg-black rounded-[3rem] border border-border-subtle overflow-hidden group shadow-[0_0_80px_rgba(0,0,0,0.5)]">
-                  <div className="absolute inset-0 bg-[#0F0F10]">
-                    <img 
-                      src={`http://${printerIp}/webcam/?action=stream`} 
-                      alt="Inspection Feed"
-                      className="w-full h-full object-cover opacity-80 mix-blend-screen transition-opacity group-hover:opacity-100"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1631281441457-3a111a4fcf23?q=80&w=1200&auto=format&fit=crop';
-                      }}
-                    />
-                  </div>
+                    <div className="absolute inset-0 bg-[#0F0F10]">
+                      <img 
+                        src={streamError ? 'https://images.unsplash.com/photo-1631281441457-3a111a4fcf23?q=80&w=1200&auto=format&fit=crop' : `http://${printerIp}/webcam/?action=stream`} 
+                        alt="Inspection Feed"
+                        className="w-full h-full object-cover opacity-80 mix-blend-screen transition-opacity group-hover:opacity-100"
+                        onError={() => setStreamError(true)}
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
                   
                   <div className="absolute inset-0 pointer-events-none border-[30px] border-black/20" />
                   <div className="absolute inset-10 border border-white/5 rounded-[2rem] pointer-events-none" />
