@@ -1,0 +1,6 @@
+{
+  "name": "Neptune Nexus",
+  "description": "A sleek dashboard to monitor your Elegoo 3D printer, track print progress, and view live camera feeds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
