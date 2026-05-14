@@ -61,42 +61,53 @@ export class SDCPService {
   }
 
   private handleMessage(payload: any) {
-    // SDCP V3 often uses a structure like: { Topic: "...", Data: { Attributes: {...}, Status: {...} } }
-    // Or it might be direct topic-based JSON
+    // Handle both wrapped "Data" structure and flat top-level structures
+    const data = payload.Data || payload;
     
-    if (payload.Data?.MainboardID) {
-      this.mainboardId = payload.Data.MainboardID;
+    if (data.MainboardID) {
+      this.mainboardId = data.MainboardID;
       this.onStatusUpdate({ mainboardId: this.mainboardId });
     }
 
-    const status = payload.Data?.Status || payload.Data?.Attributes;
-    if (status) {
+    const statusRoot = data.Status || data.Attributes;
+    if (statusRoot) {
       const updates: Partial<SaturnStatus> = {};
       
-      if (status.State !== undefined) {
+      // PrintInfo has more specific details on S4 Ultra
+      const printInfo = statusRoot.PrintInfo;
+      // S4U uses Status inside PrintInfo for active print state
+      const rawState = printInfo?.Status ?? statusRoot.State;
+
+      if (rawState !== undefined) {
         const stateMap: Record<number, SaturnStatus['state']> = {
           0: 'IDLE',
           1: 'PRINTING',
-          2: 'PAUSED',
-          3: 'FINISH',
-          4: 'ERROR'
+          2: 'PRINTING', // S4U uses 2 for active printing
+          3: 'PAUSED',
+          4: 'FINISH',
+          5: 'ERROR'
         };
-        updates.state = stateMap[status.State] || 'IDLE';
+        updates.state = stateMap[rawState] || 'IDLE';
       }
 
-      if (status.CurrentLayer !== undefined) updates.currentLayer = status.CurrentLayer;
-      if (status.TotalLayer !== undefined) updates.totalLayers = status.TotalLayer;
+      // Layer info can be in statusRoot or statusRoot.PrintInfo
+      const currentLayer = printInfo?.CurrentLayer ?? statusRoot.CurrentLayer;
+      const totalLayers = printInfo?.TotalLayer ?? statusRoot.TotalLayer;
+
+      if (currentLayer !== undefined) updates.currentLayer = currentLayer;
+      if (totalLayers !== undefined) updates.totalLayers = totalLayers;
       
       if (updates.currentLayer !== undefined && updates.totalLayers) {
         updates.progress = Math.round((updates.currentLayer / updates.totalLayers) * 100);
       }
 
-      if (status.Filename) updates.filename = status.Filename;
+      const filename = printInfo?.Filename ?? statusRoot.Filename;
+      if (filename) updates.filename = filename;
       
-      // Saturn 4 Ultra specific sensors
+      // Temperature info fallback (UV LED temp is a good proxy if ResinTemp is missing)
       updates.temperatures = {
-        enclosure: status.ChamberTemp || 0,
-        resin: status.ResinTemp || 0
+        enclosure: statusRoot.ChamberTemp || 0,
+        resin: Math.round((statusRoot.ResinTemp || statusRoot.TempOfUVLED || 0) * 10) / 10
       };
 
       this.onStatusUpdate(updates);

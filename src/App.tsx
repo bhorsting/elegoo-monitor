@@ -340,7 +340,7 @@ export default function App() {
                 <section className="relative flex-1 bg-black rounded-[3rem] border border-border-subtle overflow-hidden group shadow-[0_0_80px_rgba(0,0,0,0.5)]">
                     <div className="absolute inset-0 bg-[#0F0F10]">
                       <img 
-                        src={streamError ? 'https://images.unsplash.com/photo-1631281441457-3a111a4fcf23?q=80&w=1200&auto=format&fit=crop' : `http://${printerIp}/webcam/?action=stream`} 
+                        src={streamError ? 'https://images.unsplash.com/photo-1631281441457-3a111a4fcf23?q=80&w=1200&auto=format&fit=crop' : `http://${printerIp}:3031/video`} 
                         alt="Inspection Feed"
                         className="w-full h-full object-cover opacity-80 mix-blend-screen transition-opacity group-hover:opacity-100"
                         onError={() => setStreamError(true)}
